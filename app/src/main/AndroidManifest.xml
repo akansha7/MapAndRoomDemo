@@ -38,9 +38,9 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
 
-        <meta-data
-            android:name="com.skyhook.context.API_KEY"
-            android:value="@string/skyhook_apikey" />
+<!--        <meta-data-->
+<!--            android:name="com.skyhook.context.API_KEY"-->
+<!--            android:value="@string/skyhook_apikey" />-->
 
         <!--Location SDK in background without running a foreground service-->
         <service
