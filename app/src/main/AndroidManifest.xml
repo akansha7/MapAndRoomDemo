@@ -2,8 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.app.mapandroom">
 
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -30,6 +37,21 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
+
+        <meta-data
+            android:name="com.skyhook.context.API_KEY"
+            android:value="@string/skyhook_apikey" />
+
+        <!--Location SDK in background without running a foreground service-->
+        <service
+            android:name="com.skyhookwireless.spi.network.NetworkJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false"/>
+
+        <!--if your app’s minimum supported Android version is below API 24-->
+        <receiver
+            android:name="com.skyhookwireless.spi.power.AlarmReceiver"
+            android:exported="false"/>
     </application>
 
 </manifest>

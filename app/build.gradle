@@ -34,11 +34,16 @@ dependencies {
 
     //Map places api
     implementation 'com.google.android.libraries.places:places:2.3.0'
+//    implementation 'com.google.android.libraries.places:places:1.1.0'
+
 
     def room_version = "2.2.5"
     implementation "androidx.room:room-runtime:$room_version"
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
+    implementation 'com.skyhook.location:location-sdk-android:5.2+'
+    implementation "androidx.fragment:fragment:1.2.0"
+
 
 }
