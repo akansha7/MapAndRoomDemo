@@ -35,6 +35,7 @@ import com.app.mapandroom.utils.AppController;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -120,17 +121,17 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void init() {
+        // init views
         Button btnSave = findViewById(R.id.btnSave);
         Button btnHistory = findViewById(R.id.btnHistory);
 
+        // set Listeners
         btnSave.setOnClickListener(this);
         btnHistory.setOnClickListener(this);
 
-        // Construct a PlacesClient
-//        Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
-
-         Places.initialize(this, getString(R.string.google_maps_key));
-         placesClient = Places.createClient(this);
+        // Place id init
+        Places.initialize(this, getString(R.string.google_maps_key));
+        placesClient = Places.createClient(this);
 
         // Construct a FusedLocationProviderClient.
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
@@ -140,24 +141,26 @@ public class MainActivity extends AppCompatActivity
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        // Set the fields to specify which types of place data to return.
-        List<Place.Field> fields = Arrays.asList(Place.Field.ID, Place.Field.NAME,Place.Field.LAT_LNG);
-        // Start the autocomplete intent.
-        Intent intent = new Autocomplete.IntentBuilder(
-                AutocompleteActivityMode.FULLSCREEN, fields)
-                .build(this);
-        startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE);
-
         AutocompleteSupportFragment autocompleteFragment = (AutocompleteSupportFragment)
                 getSupportFragmentManager().findFragmentById(R.id.autocomplete_fragment);
 
         autocompleteFragment.setPlaceFields(Arrays.asList(Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG));
+
+        // Set the fields to specify which types of place data to return.
+        List<Place.Field> fields = Arrays.asList(Place.Field.ID, Place.Field.NAME,Place.Field.LAT_LNG);
+
+        // Start the autocomplete intent.
+        Intent intent = new Autocomplete.IntentBuilder(
+                AutocompleteActivityMode.OVERLAY, fields)
+                .build(this);
+        startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE);
 
         autocompleteFragment.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onPlaceSelected(Place place) {
                 // TODO: Get info about the selected place.
                 Log.i(TAG, "Place: " + place.getName() + ", " + place.getId());
+                redirectMarkerToLatLngPosition(place.getLatLng());
             }
 
             @Override
@@ -180,6 +183,75 @@ public class MainActivity extends AppCompatActivity
         super.onSaveInstanceState(outState);
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull final String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        PermissionManager.onRequestPermissionsResult(MainActivity.this, new PermissionManager.PermissionListener() {
+            @Override
+            public void onPermissionsGranted(List<String> perms) {
+                Log.e(TAG, "onPermissionsGranted   " + perms);
+            }
+
+            @Override
+            public void onPermissionsDenied(List<String> perms) {
+                Log.e(TAG, "onPermissionsDenied  " + perms);
+            }
+
+            @Override
+            public void onPermissionRequestRejected() {
+                Log.e(TAG, "onPermissionRequestRejected");
+            }
+
+            @Override
+            public void onPermissionNeverAsked(List<String> perms) {
+                Log.e(TAG, "onPermissionNeverAsked");
+            }
+        }, requestCode, permissions, grantResults);
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.btnSave:
+
+                if (strAddress.isEmpty() && strAddress.equals("")){
+                    Toast.makeText(this, "Please select address", Toast.LENGTH_SHORT).show();
+                }else {
+                    com.app.mapandroom.database.Location location = new com.app.mapandroom.database.Location();
+                    location.setAddress(strAddress);
+                    location.setId(System.currentTimeMillis());
+                    myAppDatabase.myDao().addLocation(location);
+                    Toast.makeText(this, "Location added successfully", Toast.LENGTH_SHORT).show();
+                }
+                break;
+
+            case R.id.btnHistory:
+                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+                startActivity(intent);
+                break;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode == AUTOCOMPLETE_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                Place place = Autocomplete.getPlaceFromIntent(data);
+                Log.e(TAG, "Place: " + place.getName() + ", " + place.getId());
+                redirectMarkerToLatLngPosition(place.getLatLng());
+            } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
+                // TODO: Handle the error.
+                Status status = Autocomplete.getStatusFromIntent(data);
+                Log.i(TAG, status.getStatusMessage());
+            } else if (resultCode == RESULT_CANCELED) {
+                // The user canceled the operation.
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
     /**
      * Manipulates the map when it's available.
      * This callback is triggered when the map is ready to be used.
@@ -192,23 +264,7 @@ public class MainActivity extends AppCompatActivity
 
             @Override
             public void onMapClick(LatLng latLng) {
-                // Creating a marker
-                MarkerOptions markerOptions = new MarkerOptions();
-                // Setting the position for the marker
-                markerOptions.position(latLng);
-
-                // Setting the title for the marker.
-                // This will be displayed on taping the marker
-                markerOptions.title(getAddressFromLatLang(latLng));
-                strAddress = getAddressFromLatLang(latLng);
-                // Clears the previously touched position
-                map.clear();
-
-                // Animating to the touched position
-                map.animateCamera(CameraUpdateFactory.newLatLng(latLng));
-
-                // Placing a marker on the touched position
-                map.addMarker(markerOptions);
+                redirectMarkerToLatLngPosition(latLng);
             }
         });
         // Prompt the user for permission.
@@ -219,6 +275,35 @@ public class MainActivity extends AppCompatActivity
         getDeviceLocation();
     }
 
+    /**
+     * Add marker to the place from latlong
+     */
+    private void redirectMarkerToLatLngPosition(LatLng latLng) {
+        map.clear();
+        // Creating a marker
+        MarkerOptions markerOptions = new MarkerOptions();
+        // Setting the position for the marker
+        markerOptions.position(latLng);
+
+        // Setting the title for the marker.
+        // This will be displayed on taping the marker
+        markerOptions.title(getAddressFromLatLang(latLng));
+        strAddress = getAddressFromLatLang(latLng);
+        // Clears the previously touched position
+
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 2));
+        // Zoom in, animating the camera.
+        map.animateCamera(CameraUpdateFactory.zoomIn());
+        // Zoom out to zoom level 10, animating with a duration of 1 seconds.
+        map.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM), 1000, null);
+
+        // Placing a marker on the touched position
+        map.addMarker(markerOptions);
+    }
+
+    /**
+     * Identify address from latlong
+     */
     private String getAddressFromLatLang(LatLng latLng) {
         Geocoder geocoder;
         List<Address> addresses;
@@ -256,12 +341,10 @@ public class MainActivity extends AppCompatActivity
                                 map.addMarker(new MarkerOptions().position(new LatLng(lastKnownLocation.getLatitude(),
                                         lastKnownLocation.getLongitude())).title(getAddressFromLatLang(currentLatLang)));
                                 strAddress = getAddressFromLatLang(currentLatLang);
-
                             }
                         } else {
                             Log.d(TAG, "Current location is null. Using defaults.");
                             Log.e(TAG, "Exception: %s", task.getException());
-
                             map.moveCamera(CameraUpdateFactory
                                     .newLatLngZoom(defaultLocation, DEFAULT_ZOOM));
                             map.getUiSettings().setMyLocationButtonEnabled(false);
@@ -297,7 +380,6 @@ public class MainActivity extends AppCompatActivity
     /**
      * Updates the map's UI settings based on whether the user has granted location permission.
      */
-    // [START maps_current_place_update_location_ui]
     private void updateLocationUI() {
         if (map == null) {
             return;
@@ -315,81 +397,5 @@ public class MainActivity extends AppCompatActivity
         } catch (SecurityException e) {
             Log.e("Exception: %s", e.getMessage());
         }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull final String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        PermissionManager.onRequestPermissionsResult(MainActivity.this, new PermissionManager.PermissionListener() {
-            @Override
-            public void onPermissionsGranted(List<String> perms) {
-                Log.e(TAG, "onPermissionsGranted   " + perms);
-//                displayLocationSettingsRequest();
-//                location.beginUpdates();
-            }
-
-            @Override
-            public void onPermissionsDenied(List<String> perms) {
-                Log.e(TAG, "onPermissionsDenied  " + perms);
-//                displayLocationSettingsRequest();
-            }
-
-            @Override
-            public void onPermissionRequestRejected() {
-                Log.e(TAG, "onPermissionRequestRejected");
-//                displayLocationSettingsRequest();
-
-            }
-
-            @Override
-            public void onPermissionNeverAsked(List<String> perms) {
-                Log.e(TAG, "onPermissionNeverAsked");
-//                displayLocationSettingsRequest();
-            }
-        }, requestCode, permissions, grantResults);
-    }
-
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.btnSave:
-
-                if (strAddress.isEmpty() && strAddress.equals("")){
-                    Toast.makeText(this, "Please select address", Toast.LENGTH_SHORT).show();
-                }else {
-                    com.app.mapandroom.database.Location location = new com.app.mapandroom.database.Location();
-                    location.setAddress(strAddress);
-                    location.setId(System.currentTimeMillis());
-                    myAppDatabase.myDao().addLocation(location);
-                    Toast.makeText(this, "Location added successfully", Toast.LENGTH_SHORT).show();
-                }
-                break;
-
-            case R.id.btnHistory:
-
-                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
-                startActivity(intent);
-                break;
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (requestCode == AUTOCOMPLETE_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-//                Place place = Autocomplete.getPlaceFromIntent(data);
-//                Log.i(TAG, "Place: " + place.getName() + ", " + place.getId());
-
-            } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
-                // TODO: Handle the error.
-//                Status status = Autocomplete.getStatusFromIntent(data);
-//                Log.i(TAG, status.getStatusMessage());
-            } else if (resultCode == RESULT_CANCELED) {
-                // The user canceled the operation.
-            }
-            return;
-        }
-        super.onActivityResult(requestCode, resultCode, data);
     }
 }

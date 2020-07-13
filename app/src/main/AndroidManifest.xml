@@ -49,9 +49,9 @@
             android:exported="false"/>
 
         <!--if your app’s minimum supported Android version is below API 24-->
-        <receiver
-            android:name="com.skyhookwireless.spi.power.AlarmReceiver"
-            android:exported="false"/>
+<!--        <receiver-->
+<!--            android:name="com.skyhookwireless.spi.power.AlarmReceiver"-->
+<!--            android:exported="false"/>-->
     </application>
 
 </manifest>
