@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">MapAndRoomDemo</string>
-    <string name="google_maps_key">AIzaSyCTmMrlJMBvDwvuhGSSos5gHr4m8YemvvA</string>
+    <string name="google_maps_key"></string>
     <string name="skyhook_apikey"></string>
 
     <string name="title_activity_maps">Current Place Details</string>
