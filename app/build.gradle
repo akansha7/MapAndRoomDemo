@@ -45,5 +45,6 @@ dependencies {
     implementation 'com.skyhook.location:location-sdk-android:5.2+'
     implementation "androidx.fragment:fragment:1.2.0"
 
+    implementation 'com.google.maps.android:android-maps-utils:2.0.3'
 
 }
